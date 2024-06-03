@@ -72,7 +72,7 @@ const Home = () => {
   };
 
   const handleRematch = () => {
-    socket.emit('rematch', { room });
+    socket.emit('rematch', { room, name });
 
     setCountdown(3);
     const interval = setInterval(() => {
@@ -92,6 +92,9 @@ const Home = () => {
 
   return (
     <div className={styles.container}>
+      <header className={styles.header}>
+        <h1 className={styles.headerText}>TONTEXT</h1>
+      </header>
       <div className={styles.chatContainer}>
         <div className={styles.chatMessages} id="chat-messages">
           {messages.map((msg, index) => (

@@ -1,3 +1,4 @@
+// server.js
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
@@ -44,9 +45,9 @@ app.prepare().then(() => {
       waitingUsers = waitingUsers.filter(user => user.id !== socket.id);
     });
 
-    socket.on('rematch', ({ room }) => {
-      // Notify the other user in the room that user 1 left
-      socket.to(room).emit('userLeft', { name: 'User 1' });
+    socket.on('rematch', ({ room, name }) => {
+      // Notify the other user in the room that the current user left
+      socket.to(room).emit('userLeft', { name });
     });
   });
 
