@@ -11,6 +11,7 @@ const Home = () => {
   const [chatStarted, setChatStarted] = useState(false);
   const [room, setRoom] = useState('');
   const [countdown, setCountdown] = useState(0);
+  const [nameSet, setNameSet] = useState(false);
 
   useEffect(() => {
     socket = io();
@@ -39,6 +40,14 @@ const Home = () => {
       setMessages([{ name: 'System', message: 'Session disconnected. You can join a new chat.' }]);
     });
 
+    if (typeof window !== 'undefined') {
+      const storedName = localStorage.getItem('chatName');
+      if (storedName) {
+        setName(storedName);
+        setNameSet(true);
+      }
+    }
+
     return () => {
       socket.disconnect();
     };
@@ -47,6 +56,12 @@ const Home = () => {
   const joinChat = () => {
     if (name) {
       socket.emit('join', { name });
+      if (!nameSet) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('chatName', name);
+        }
+        setNameSet(true);
+      }
     }
   };
 
@@ -80,10 +95,12 @@ const Home = () => {
         if (prevCountdown <= 1) {
           clearInterval(interval);
           setChatStarted(false);
-          setName('');
-          setMessage('');
           setMessages([]);
           setRoom('');
+          if (!nameSet && typeof window !== 'undefined') {
+            localStorage.removeItem('chatName');
+          }
+          setNameSet(false);
         }
         return prevCountdown - 1;
       });
@@ -127,6 +144,7 @@ const Home = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyPress={handleNameKeyPress}
+              disabled={nameSet}
             />
             <button onClick={joinChat}>Join Chat</button>
           </div>
