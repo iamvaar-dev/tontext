@@ -10,6 +10,7 @@ const Home = () => {
   const [messages, setMessages] = useState([]);
   const [chatStarted, setChatStarted] = useState(false);
   const [room, setRoom] = useState('');
+  const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
     socket = io();
@@ -71,13 +72,22 @@ const Home = () => {
   };
 
   const handleRematch = () => {
-    // Notify server that user 1 left
     socket.emit('rematch', { room });
-    
-    // Reload the page after 3 seconds
-    setTimeout(() => {
-      window.location.reload();
-    }, 3000);
+
+    setCountdown(3);
+    const interval = setInterval(() => {
+      setCountdown(prevCountdown => {
+        if (prevCountdown <= 1) {
+          clearInterval(interval);
+          setChatStarted(false);
+          setName('');
+          setMessage('');
+          setMessages([]);
+          setRoom('');
+        }
+        return prevCountdown - 1;
+      });
+    }, 1000);
   };
 
   return (
@@ -116,6 +126,11 @@ const Home = () => {
               onKeyPress={handleNameKeyPress}
             />
             <button onClick={joinChat}>Join Chat</button>
+          </div>
+        )}
+        {countdown > 0 && (
+          <div className={styles.countdown}>
+            Rematching in {countdown}...
           </div>
         )}
       </div>
