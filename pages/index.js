@@ -10,12 +10,11 @@ const Home = () => {
   const [messages, setMessages] = useState([]);
   const [chatStarted, setChatStarted] = useState(false);
   const [room, setRoom] = useState('');
+  const [countdown, setCountdown] = useState(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      socket = io({
-        path: '/socket.io',
-      });
+      socket = io();
 
       socket.on('roomAssigned', ({ name: pairedName, room }) => {
         setRoom(room);
@@ -32,20 +31,43 @@ const Home = () => {
       });
 
       socket.on('userLeft', ({ name }) => {
-        setChatStarted(false);
-        setMessages([{ name: 'System', message: `${name} left the chat. Waiting for a new user...` }]);
+        setMessages((prevMessages) => [...prevMessages, { name: 'System', message: `${name} left the chat.` }]);
+        setCountdown(3);
       });
 
+      socket.on('rematchCountdown', () => {
+        setCountdown(3);
+      });
+
+      const interval = setInterval(() => {
+        if (countdown > 0) {
+          setCountdown(countdown - 1);
+        }
+        if (countdown === 1) {
+          window.location.reload();
+        }
+      }, 1000);
+
       return () => {
+        clearInterval(interval);
         socket.disconnect();
       };
+    }
+  }, [countdown]);
+
+  useEffect(() => {
+    const savedName = sessionStorage.getItem('chatName');
+    if (savedName) {
+      setName(savedName);
     }
   }, []);
 
   const joinChat = () => {
     if (name) {
-      sessionStorage.setItem('chatName', name);
       socket.emit('join', { name });
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('chatName', name);
+      }
     }
   };
 
@@ -71,27 +93,16 @@ const Home = () => {
   };
 
   const handleRematch = () => {
-    socket.emit('rematch', { name, room });
-    setTimeout(() => {
-      setName('');
-      sessionStorage.removeItem('chatName');
-      setChatStarted(false);
-      setMessages([]);
-    }, 3000);
-  };
-
-  useEffect(() => {
-    const savedName = sessionStorage.getItem('chatName');
-    if (savedName) {
-      setName(savedName);
+    const chatName = sessionStorage.getItem('chatName');
+    if (chatName) {
+      socket.emit('rematch', { name: chatName, room });
+      setCountdown(3);
     }
-  }, []);
+  };
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1>TONTEXT</h1>
-      </div>
+      <header className={styles.header}>TONTEXT</header>
       <div className={styles.chatContainer}>
         <div className={styles.chatMessages} id="chat-messages">
           {messages.map((msg, index) => (
@@ -128,6 +139,7 @@ const Home = () => {
             <button onClick={joinChat}>Join Chat</button>
           </div>
         )}
+        {countdown !== null && <div className={styles.countdown}>Refreshing in {countdown}...</div>}
       </div>
     </div>
   );

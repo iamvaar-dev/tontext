@@ -15,21 +15,21 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  const io = socketIo(server);
+  const io = socketIo(server, {
+    path: '/socket.io'
+  });
 
   io.on('connection', (socket) => {
     socket.on('join', ({ name }) => {
       const existingUser = waitingUsers.find(user => user.id === socket.id);
       if (existingUser) {
-        // User is already in the waiting list
         return;
       }
 
       if (waitingUsers.length > 0) {
         const pairUser = waitingUsers.shift();
         if (pairUser.id === socket.id) {
-          // The user tried to pair with themselves
-          waitingUsers.push(pairUser); // Re-add them to the waiting list
+          waitingUsers.push(pairUser);
           return;
         }
 
@@ -47,6 +47,17 @@ app.prepare().then(() => {
 
     socket.on('message', ({ name, message, room }) => {
       socket.to(room).emit('message', { name, message });
+    });
+
+    socket.on('rematch', ({ name, room }) => {
+      socket.to(room).emit('userLeft', { name });
+      io.in(room).clients((error, clients) => {
+        if (error) throw error;
+        clients.forEach(clientId => {
+          io.sockets.sockets[clientId].leave(room);
+          io.sockets.sockets[clientId].emit('rematchCountdown');
+        });
+      });
     });
 
     socket.on('disconnect', () => {
