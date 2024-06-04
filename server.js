@@ -1,4 +1,3 @@
-// server.js
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
@@ -20,11 +19,20 @@ app.prepare().then(() => {
 
   io.on('connection', (socket) => {
     socket.on('join', ({ name }) => {
-      // Exclude the current user from the waiting list
-      waitingUsers = waitingUsers.filter(user => user.id !== socket.id);
+      const existingUser = waitingUsers.find(user => user.id === socket.id);
+      if (existingUser) {
+        // User is already in the waiting list
+        return;
+      }
 
       if (waitingUsers.length > 0) {
-        const pairUser = waitingUsers.pop();
+        const pairUser = waitingUsers.shift();
+        if (pairUser.id === socket.id) {
+          // The user tried to pair with themselves
+          waitingUsers.push(pairUser); // Re-add them to the waiting list
+          return;
+        }
+
         const room = `${pairUser.id}#${socket.id}`;
         socket.join(room);
         pairUser.socket.join(room);
@@ -43,11 +51,6 @@ app.prepare().then(() => {
 
     socket.on('disconnect', () => {
       waitingUsers = waitingUsers.filter(user => user.id !== socket.id);
-    });
-
-    socket.on('rematch', ({ room, name }) => {
-      // Notify the other user in the room that the current user left
-      socket.to(room).emit('userLeft', { name });
     });
   });
 

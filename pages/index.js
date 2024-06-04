@@ -10,58 +10,42 @@ const Home = () => {
   const [messages, setMessages] = useState([]);
   const [chatStarted, setChatStarted] = useState(false);
   const [room, setRoom] = useState('');
-  const [countdown, setCountdown] = useState(0);
-  const [nameSet, setNameSet] = useState(false);
 
   useEffect(() => {
-    socket = io();
-
-    socket.on('roomAssigned', ({ name: pairedName, room }) => {
-      setRoom(room);
-      setChatStarted(true);
-      setMessages([{ name: 'System', message: `You are paired with ${pairedName}` }]);
-    });
-
-    socket.on('waitingForPair', () => {
-      setMessages([{ name: 'System', message: 'Waiting for another user to join...' }]);
-    });
-
-    socket.on('message', ({ name, message }) => {
-      setMessages((prevMessages) => [...prevMessages, { name, message }]);
-    });
-
-    socket.on('userLeft', ({ name }) => {
-      setChatStarted(false);
-      setMessages([{ name: 'System', message: `${name} left the chat. Waiting for a new user...` }]);
-    });
-
-    socket.on('sessionDisconnected', () => {
-      setChatStarted(false);
-      setMessages([{ name: 'System', message: 'Session disconnected. You can join a new chat.' }]);
-    });
-
     if (typeof window !== 'undefined') {
-      const storedName = localStorage.getItem('chatName');
-      if (storedName) {
-        setName(storedName);
-        setNameSet(true);
-      }
-    }
+      socket = io({
+        path: '/socket.io',
+      });
 
-    return () => {
-      socket.disconnect();
-    };
+      socket.on('roomAssigned', ({ name: pairedName, room }) => {
+        setRoom(room);
+        setChatStarted(true);
+        setMessages([{ name: 'System', message: `You are paired with ${pairedName}` }]);
+      });
+
+      socket.on('waitingForPair', () => {
+        setMessages([{ name: 'System', message: 'Waiting for another user to join...' }]);
+      });
+
+      socket.on('message', ({ name, message }) => {
+        setMessages((prevMessages) => [...prevMessages, { name, message }]);
+      });
+
+      socket.on('userLeft', ({ name }) => {
+        setChatStarted(false);
+        setMessages([{ name: 'System', message: `${name} left the chat. Waiting for a new user...` }]);
+      });
+
+      return () => {
+        socket.disconnect();
+      };
+    }
   }, []);
 
   const joinChat = () => {
     if (name) {
+      sessionStorage.setItem('chatName', name);
       socket.emit('join', { name });
-      if (!nameSet) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('chatName', name);
-        }
-        setNameSet(true);
-      }
     }
   };
 
@@ -87,31 +71,27 @@ const Home = () => {
   };
 
   const handleRematch = () => {
-    socket.emit('rematch', { room, name });
-
-    setCountdown(3);
-    const interval = setInterval(() => {
-      setCountdown(prevCountdown => {
-        if (prevCountdown <= 1) {
-          clearInterval(interval);
-          setChatStarted(false);
-          setMessages([]);
-          setRoom('');
-          if (!nameSet && typeof window !== 'undefined') {
-            localStorage.removeItem('chatName');
-          }
-          setNameSet(false);
-        }
-        return prevCountdown - 1;
-      });
-    }, 1000);
+    socket.emit('rematch', { name, room });
+    setTimeout(() => {
+      setName('');
+      sessionStorage.removeItem('chatName');
+      setChatStarted(false);
+      setMessages([]);
+    }, 3000);
   };
+
+  useEffect(() => {
+    const savedName = sessionStorage.getItem('chatName');
+    if (savedName) {
+      setName(savedName);
+    }
+  }, []);
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <h1 className={styles.headerText}>TONTEXT</h1>
-      </header>
+      <div className={styles.header}>
+        <h1>TONTEXT</h1>
+      </div>
       <div className={styles.chatContainer}>
         <div className={styles.chatMessages} id="chat-messages">
           {messages.map((msg, index) => (
@@ -144,14 +124,8 @@ const Home = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyPress={handleNameKeyPress}
-              disabled={nameSet}
             />
             <button onClick={joinChat}>Join Chat</button>
-          </div>
-        )}
-        {countdown > 0 && (
-          <div className={styles.countdown}>
-            Rematching in {countdown}...
           </div>
         )}
       </div>
