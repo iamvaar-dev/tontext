@@ -2,6 +2,7 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const socketIo = require('socket.io');
+const express = require('express');
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
@@ -10,12 +11,22 @@ const handle = app.getRequestHandler();
 let waitingUsers = [];
 
 app.prepare().then(() => {
-  const server = createServer((req, res) => {
+  const server = express();
+
+  // Health check endpoint
+  server.get('/health', (req, res) => {
+    res.status(200).send('OK');
+  });
+
+  // Catch-all for Next.js
+  server.all('*', (req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
   });
 
-  const io = socketIo(server, {
+  const httpServer = createServer(server);
+
+  const io = socketIo(httpServer, {
     path: '/socket.io'
   });
 
@@ -65,8 +76,9 @@ app.prepare().then(() => {
     });
   });
 
-  server.listen(3000, (err) => {
+  const PORT = process.env.PORT || 3000;
+  httpServer.listen(PORT, (err) => {
     if (err) throw err;
-    console.log('> Ready on http://localhost:3000');
+    console.log(`> Ready on http://localhost:${PORT}`);
   });
 });
