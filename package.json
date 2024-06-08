@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
-    "build": "next build",
+    "build": "npx next build",
     "start": "NODE_ENV=production node server.js",
-    "lint": "next lint"
+    "postinstall": "npx next build",
+    "lint": "npx next lint"
   },
   "dependencies": {
     "@twa-dev/sdk": "^7.0.0",
